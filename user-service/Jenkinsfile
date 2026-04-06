@@ -1,0 +1,12 @@
+// user-service/Jenkinsfile
+@Library("jenkins-shared-library@main") _
+ 
+standardPipeline(
+    serviceName:    "user-service",
+    language:       "java",
+    environment:    "production",
+    dockerRepo:     "mycompany",
+    slackChannel:   "#backend-team",
+    runSecScan:     true
+)
+

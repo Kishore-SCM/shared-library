@@ -1,0 +1,38 @@
+# charts/microservice/templates/deployment.yaml
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+    version: {{ .Values.image.tag | quote }}
+    environment: {{ .Values.environment }}
+    managed-by: jenkins-seed-job
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }  # zero-downtime
+  template:
+    metadata:
+      labels: { app: {{ .Release.Name }}, version: {{ .Values.image.tag | quote }} }
+      annotations: {{- toYaml .Values.podAnnotations | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Release.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [{ name: http, containerPort: {{ .Values.service.targetPort }} }]
+          livenessProbe:  {{- toYaml .Values.livenessProbe  | nindent 12 }}
+          readinessProbe: {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:      {{- toYaml .Values.resources      | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec: { command: ["/bin/sh", "-c", "sleep 5"] }  # graceful drain
+      terminationGracePeriodSeconds: 30
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+
