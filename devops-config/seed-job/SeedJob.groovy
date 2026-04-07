@@ -1,58 +1,42 @@
-// devops-config/seed-job/SeedJob.groovy
-pipeline {
-    agent any
-    parameters {
-        booleanParam(name: "DRY_RUN", defaultValue: false,
-                     description: "Preview jobs to create without creating them")
-    }
-    stages {
-        stage("Checkout Config") {
-            steps {
-                git url: "https://github.com/myorg/devops-config.git", branch: "main"
-            }
+// SeedJob.groovy  — pure Job DSL, no pipeline{} wrapper
+
+import groovy.yaml.YamlSlurper   // NOT needed if using readFileFromWorkspace
+
+def configText = readFileFromWorkspace('seed-job/services.yaml')
+def config     = new groovy.yaml.YamlSlurper().parseText(configText)
+def services   = config.services
+def global     = config.global
+
+services.each { svc ->
+    def jobName        = "microservices/${svc.name}"
+    def branchToDeploy = svc.branch ?: global.branch_to_deploy ?: 'master'
+    def slackChannel   = svc.slack_channel ?: global.slack_channel ?: '#deployments'
+
+    pipelineJob(jobName) {
+        description("Auto-generated | ${svc.language} | ${svc.environment}")
+
+        logRotator {
+            numToKeep(10)
+            artifactNumToKeep(5)
         }
-        stage("Create Pipelines") {
-            steps {
-                script {
-                    def yaml    = readYaml file: "seed-job/services.yaml"
-                    def global  = yaml.global
-                    def services = yaml.services
- 
-                    echo "Found ${services.size()} services"
-                    if (params.DRY_RUN) { echo "DRY RUN — no jobs created"; return }
- 
-                    services.each { svc ->
-                        def jobName = "microservices/${svc.name}"
-                        pipelineJob(jobName) {
-                            description("Auto-generated | ${svc.language} | ${svc.environment}")
-                            logRotator { numToKeep(10) }
-                            definition {
-                                scmPipeline {
-                                    scm {
-                                        git {
-                                            remote { url(svc.repo); credentials("github-credentials") }
-                                            branch(svc.branch ?: global.branch_to_deploy)
-                                        }
-                                    }
-                                    scriptPath("Jenkinsfile")
-                                }
-                            }
+
+        definition {
+            cpsScm {
+                scm {
+                    git {
+                        remote {
+                            url(svc.repo)
+                            credentials('git')
                         }
-                        echo "Created: ${jobName}"
+                        branch(branchToDeploy)
                     }
                 }
-            }
-        }
-        stage("Trigger Initial Builds") {
-            steps {
-                script {
-                    def yaml = readYaml file: "seed-job/services.yaml"
-                    yaml.services.each { svc ->
-                        build job: "microservices/${svc.name}", wait: false, propagate: false
-                    }
-                }
+                scriptPath('Jenkinsfile')
             }
         }
     }
+
+    echo "Created pipeline: ${jobName}"
 }
 
+echo "All pipelines created successfully!"
