@@ -48,5 +48,7 @@ services.each { svc ->
         }
     }
 
-    echo "Created: microservices/${svc.name}"
+   println "Created: microservices/${svc.name}" // ← correct for Job DSL
 }
+
+println "All pipelines created successfully!"    // ← correct
