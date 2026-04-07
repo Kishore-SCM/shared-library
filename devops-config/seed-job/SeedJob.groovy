@@ -1,23 +1,35 @@
-// SeedJob.groovy  — pure Job DSL, no pipeline{} wrapper
+// shared-library/devops-config/seed-job/SeedJob.groovy
 
-import groovy.yaml.YamlSlurper   // NOT needed if using readFileFromWorkspace
-
-def configText = readFileFromWorkspace('seed-job/services.yaml')
-def config     = new groovy.yaml.YamlSlurper().parseText(configText)
-def services   = config.services
-def global     = config.global
+def services = [
+    [
+        name:        'user-service',
+        repo:        'https://github.com/Kishore-SCM/shared-library.git',
+        language:    'java',
+        environment: 'production',
+        branch:      'master'
+    ],
+    [
+        name:        'payment-service',
+        repo:        'https://github.com/Kishore-SCM/shared-library.git',
+        language:    'python',
+        environment: 'staging',
+        branch:      'master'
+    ],
+    [
+        name:        'order-service',
+        repo:        'https://github.com/Kishore-SCM/shared-library.git',
+        language:    'node',
+        environment: 'staging',
+        branch:      'master'
+    ],
+]
 
 services.each { svc ->
-    def jobName        = "microservices/${svc.name}"
-    def branchToDeploy = svc.branch ?: global.branch_to_deploy ?: 'master'
-    def slackChannel   = svc.slack_channel ?: global.slack_channel ?: '#deployments'
-
-    pipelineJob(jobName) {
+    pipelineJob("microservices/${svc.name}") {
         description("Auto-generated | ${svc.language} | ${svc.environment}")
 
         logRotator {
             numToKeep(10)
-            artifactNumToKeep(5)
         }
 
         definition {
@@ -28,15 +40,13 @@ services.each { svc ->
                             url(svc.repo)
                             credentials('git')
                         }
-                        branch(branchToDeploy)
+                        branch(svc.branch)
                     }
                 }
-                scriptPath('Jenkinsfile')
+                scriptPath("${svc.name}/Jenkinsfile")
             }
         }
     }
 
-    echo "Created pipeline: ${jobName}"
+    echo "Created: microservices/${svc.name}"
 }
-
-echo "All pipelines created successfully!"
