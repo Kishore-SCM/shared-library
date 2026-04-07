@@ -1,5 +1,11 @@
 // shared-library/devops-config/seed-job/SeedJob.groovy
 
+// Step 1: Create parent folder first
+folder('microservices') {
+    description('Auto-generated microservice pipelines')
+}
+
+// Step 2: Define all services
 def services = [
     [
         name:        'user-service',
@@ -24,6 +30,7 @@ def services = [
     ],
 ]
 
+// Step 3: Create a pipeline job for each service
 services.each { svc ->
     pipelineJob("microservices/${svc.name}") {
         description("Auto-generated | ${svc.language} | ${svc.environment}")
@@ -48,7 +55,7 @@ services.each { svc ->
         }
     }
 
-   println "Created: microservices/${svc.name}" // ← correct for Job DSL
+    println "Created: microservices/${svc.name}"
 }
 
-println "All pipelines created successfully!"    // ← correct
+println "All pipelines created successfully!"
